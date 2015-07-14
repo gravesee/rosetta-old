@@ -1,0 +1,11 @@
+Package: rosetta
+Type: Package
+Title: R Object Translation Suite
+Version: 0.1
+Date: 2015-07-01
+Author: Eric E. Graves
+Maintainer: Eric E. Graves <eric.graves@lexisnexis.com>
+Description: Rosetta provides translation facilites for exporting a variety of
+             R objects into SAS and ECL
+License: Proprietary
+LazyData: TRUE

@@ -1,0 +1,18 @@
+{
+    "contents" : "#' Convert integer to vector of 1s and 0s\n#'\n#' Turns integer split representation into vector of class membership\n#'\n#' @param y an integer\n#' @return a \\code{numeric} vector of 1s and 0s\ntoBinary <- function(y) {\n  stopifnot(length(y) == 1, mode(y) == 'numeric')\n  q1  <- (y / 2) %/% 1\n  r   <- y - q1 * 2\n  res <- c(r)\n  while (q1 >= 1) {\n    q2 <- (q1 / 2) %/% 1\n    r  <- q1 - q2 * 2\n    q1 <- q2\n    res <- c(res, r)\n  }\n  res\n}\n\n#' Convert a vector of 1s and 0s to an integer\n#'\n#' Turns a vector of 1s and 0s representing class membership into an integer\n#'\n#' @param v an \\code{integer} vector\n#' @return an integer value\nfromBinary <- function(v) {\n  if (length(v) == 1) {if (v == 0) return(v)}\n  sum(sapply(which(v == 1) - 1, function(x) 2^x))\n}\n",
+    "created" : 1435776381739.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1075025742",
+    "id" : "A4163A5B",
+    "lastKnownWriteTime" : 1436906086,
+    "path" : "F:/R Dev/rosetta/R/utility.R",
+    "project_path" : "R/utility.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "type" : "r_source"
+}

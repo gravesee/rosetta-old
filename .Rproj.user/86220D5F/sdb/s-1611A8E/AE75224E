@@ -1,0 +1,18 @@
+{
+    "contents" : "pretty.tree <- function(obj, n, mod.data) UseMethod(\"pretty.tree\")\n\n### vtypes: 3 == factor, 2 == ordered, 1 == numeric\npretty.tree.randomForest <- function(obj, n, mod.data=NULL) {\n\n  if (is.null(mod.data)) mod.data <- mod.data(obj)\n\n  # get variable types of non-terminal nodes\n  vtypes <- with(obj$forest, ifelse(bestvar[,n] > 0,\n                                    mod.data$vtype[bestvar[,n]], 0))\n\n  # get number of categories for non-terminal nodes\n  f <- obj$forest$bestvar[,n] > 0\n  vtypes <- numeric(length(f))\n  vtypes[f] <- mod.data$vtype[obj$forest$bestvar[f, n]]\n\n  ncats <- with(obj$forest, ifelse(bestvar[,n] > 0, mod.data$ncat[bestvar[,n]], 0))\n\n  res <- structure(\n    with(obj$forest, cbind(\n      'left'   = if(!exists('treemap')) leftDaughter[,n]  else treemap[,,n][,1],\n      'right'  = if(!exists('treemap')) rightDaughter[,n] else treemap[,,n][,2],\n      'status' = nodestatus[,n],\n      'best'   = bestvar[,n],\n      'pred'   = if(obj$type == \"classification\") nodepred[,n]-1 else nodepred[,n],\n      'split'  = xbestsplit[,n],\n      'vtype'  = vtypes,\n      'ncat'   = ncats)),\n    class=\"pretty.tree\")\n  res\n}\n\n### vtypes: 3 == factor, 2 == ordered, 1 == numeric\npretty.tree.gbm <- function(obj, n, mod.data=NULL) {\n\n  if (is.null(mod.data)) mod.data <- mod.data(obj)\n\n  # get variable types of non-terminal nodes\n  f <- obj$trees[[n]][[1]] > -1\n  vtypes <- numeric(length(f))\n  vtypes[f] <- mod.data$vtype[obj$trees[[n]][[1]][f] + 1]\n\n  ncats <- with(obj, ifelse(trees[[n]][[1]] > -1,\n                            mod.data$ncat[trees[[n]][[1]] + 1], 0))\n\n  splits <- ifelse(vtypes == 3,\n                   mod.data$xbestsplit[obj$trees[[n]][[2]] + 1],\n                   obj$trees[[n]][[2]])\n\n  res <- structure(with(obj, cbind(\n    'left'   = obj$trees[[n]][[3]] + 1,\n    'right'  = obj$trees[[n]][[4]] + 1,\n    'miss'   = obj$trees[[n]][[5]] + 1,\n    'status' = ifelse(obj$trees[[n]][[1]] > -1, 1, -1),\n    'best'   = ifelse(obj$trees[[n]][[1]] > -1, obj$trees[[n]][[1]] + 1, 0),\n    'pred'   = obj$trees[[n]][[8]],\n    'split'  = splits,\n    'vtype'  = vtypes,\n    'ncat'   = ncats)),\n    class=\"pretty.tree\")\n  res\n}\n",
+    "created" : 1435779000764.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2183652769",
+    "id" : "AE75224E",
+    "lastKnownWriteTime" : 1436902318,
+    "path" : "F:/R Dev/rosetta/R/pretty.funcs.R",
+    "project_path" : "R/pretty.funcs.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "type" : "r_source"
+}

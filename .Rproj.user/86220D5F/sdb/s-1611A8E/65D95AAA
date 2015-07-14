@@ -1,0 +1,18 @@
+{
+    "contents" : "\nmod.data <- function(x) UseMethod(\"mod.data\")\n\n### MOD DATA NEEDS THE FOLLOWING:\n# 1. vtype\n# 2. vars\n# 3. lvls\n# 4. miss\n# 5. ncat\n# 6. Anything that is not unique to a tree and should be shared\n###\nmod.data.randomForest <- function(obj) {\n  mod.data <- new.env(parent=globalenv())\n\n  mod.data$vtype <- with(obj$forest, ifelse(\n      ncat > 1 & sapply(xlevels, is.character), 3,\n    ifelse(\n      ncat == 1 & sapply(xlevels, is.character), 2, 1)))\n\n  mod.data$vars <- names(obj$forest$ncat)\n  mod.data$lvls <- obj$forest$xlevels\n  mod.data$miss <- FALSE # support missing nodes?\n  mod.data$ncat <- obj$forest$ncat\n  mod.data$resp <- rf$classes\n\n  return(mod.data)\n}\n\nmod.data.gbm <- function(obj) {\n  mod.data <- new.env(parent=globalenv())\n\n    mod.data$vtype <- with(obj, ifelse(\n        sapply(var.levels, is.numeric), 1,\n      ifelse(var.type == 0, 2, 3)))\n\n  ncat <- ifelse(mod.data$vtype == 1, 1, sapply(obj$var.levels, length))\n\n  mod.data$xbestsplit <- sapply(obj$c.splits, function(x) {\n    fromBinary(ifelse(x == -1, 0, 1))\n  })\n\n  mod.data$vars <- obj$var.names\n  mod.data$lvls <- obj$var.levels\n  mod.data$miss <- TRUE # support missing nodes?\n  mod.data$ncat <- ncat\n  mod.data$class <- class(obj)\n\n  return(mod.data)\n}\n",
+    "created" : 1435779797703.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1882511068",
+    "id" : "65D95AAA",
+    "lastKnownWriteTime" : 1436902459,
+    "path" : "F:/R Dev/rosetta/R/mod.data.funcs.R",
+    "project_path" : "R/mod.data.funcs.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "type" : "r_source"
+}
