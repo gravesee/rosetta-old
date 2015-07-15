@@ -25,123 +25,118 @@ translate <- function(obj, lang="sas", pfx, n) {
   for (i in 1:n) {
     tree <- pretty.tree(obj, i, mod.data)
     class(tree) <- c(class(tree), tolower(lang))
-    out[[i]] <- export.pretty.tree(tree, pfx, i, mod.data)
+    out[[i]] <- export.pretty.tree(tree, pfx, i, mod.data, adaptor(tree))
   }
 
   out <- c(out, finalizer(obj, lang, pfx, n))
-  do.call(c, out)
+  unlist(out)
 }
 
-export.pretty.tree <- function(x, pfx, i, mod.data) UseMethod("export.pretty.tree")
+adaptor <- function(x) UseMethod("adaptor")
 
-export.pretty.tree.sas <- function(x, pfx, i, mod.data) {
+export.pretty.tree <- function(x, pfx, i, mod.data, adaptor) {
 
-  text <- list("\n")
-  recurse <- function(x, pfx, n, depth) {
-    sp <- paste(rep("  ", depth - 1), collapse = "") # spacing
+  text <- list(adaptor$PRE)
+  recurse <- function(x, n, depth=1) {
+    s <- paste(rep("  ", depth - 1), collapse = "") # spacing
+    vid  <- x[n,'best'] # variable ID
+    vnm  <- mod.data$vars[vid] # variable text
+    val  <- x[n, 'split'] # split value
+    type <- x[n, 'vtype'] # variable type
 
-    vid <- x[n,'best'] # variable ID
-    vnm <- mod.data$vars[vid] # variable text
-    val <- x[n, 'split'] # split value
-
+    ### BASE CASE ###
     if (x[n,'status'] == -1) { # base case is terminal node
-      text[[length(text)+1]] <<- sprintf("%s%s_TREE_%04d = %s;\n", sp, pfx, i, x[n,'pred'])
+      text[[length(text)+1]] <<- eval(adaptor$BASE)
       return(text)
     }
 
-    # create logic for split
-    if (x[n, 'vtype'] == 1) { # numeric split
-      ltxt <- sprintf("%sif %s <= %s then do;\n", sp, vnm, val)
-      rtxt <- sprintf("%sif %s >  %s then do;\n", sp, vnm, val)
-    } else { # ordered & factors
+    ### TREE LOGIC ###
+    memL <- NULL; memR <- NULL
+    if (type %in% c(2,3)) {
       lvl <- mod.data$lvls[[vid]] # variable levels
       ids <- if (x[n, 'vtype'] == 2) 1:val else which(toBinary(val) == 1)
-
       memL <- paste(lvl[ids], collapse = "','")
       memR <- paste(lvl[!(lvl %in% memL)], collapse = "','")
-
-      ltxt <- sprintf("%sif %s in ('%s') then do;\n", sp, vnm, memL)
-      rtxt <- sprintf("%sif %s in ('%s') then do;\n", sp, vnm, memR)
     }
 
-    # go left
-    text[[length(text)+1]] <<- ltxt
-    recurse(x, pfx, x[n,'left'], depth+1)
+    ### LEFT ###
+    text[[length(text)+1]] <<- sapply(adaptor$LEFT, function(x) {
+      if (is.null(x)) {
+        eval(if(type == 1) adaptor$LTXT$num else adaptor$LTXT$fac, parent.frame(3))
+      } else {
+        eval(x, parent.frame(3))
+      }
+    })
+    recurse(x, x[n,'left'], depth+1)
 
-    # else, go right
-    text[[length(text)+1]] <<- sprintf("%send; else\n", sp)
-    text[[length(text)+1]] <<- rtxt
-    recurse(x, pfx, x[n,'right'], depth+1)
+    ### RIGHT ###
+    text[[length(text)+1]] <<- sapply(adaptor$RIGHT, function(x) {
+      if (is.null(x)) {
+        eval(if(type == 1) adaptor$RTXT$num else adaptor$RTXT$fac, parent.frame(3))
+      } else {
+        eval(x, parent.frame(3))
+      }
+    })
+    recurse(x, x[n,'right'], depth+1)
 
-    # check for missing and recurse
+    ### MISSING ###
     if (mod.data$miss) {
-      text[[length(text)+1]] <<- sprintf("%send; else do;\n", sp, vnm)
-      recurse(x, pfx, x[n,'miss'], depth+1)
+      text[[length(text)+1]] <<- eval(adaptor$MISS)
+      recurse(x, x[n,'miss'], depth+1)
     }
 
-    text[[length(text)+1]] <<- sprintf("%send;\n", sp)
-
+    text[[length(text)+1]] <<- eval(adaptor$END)
     return(text)
   }
 
-  outdat <- do.call(c, recurse(x, pfx, 1, 1))
-  outdat
+  c(do.call(c, recurse(x, 1)), adaptor$POST)
 }
 
-export.pretty.tree.ecl <- function(x, pfx, i, mod.data) {
+adaptor.sas <- function(x) {
+list(
+  PRE  = "\n",
+  BASE = substitute(sprintf("%s%s_TREE_%04d = %s;\n", s, pfx, i, x[n,'pred'])),
+  LTXT = list(
+    'num'=substitute(sprintf("%sif %s <= %s then do;\n", s, vnm, val)),
+    'fac'=substitute(sprintf("%sif %s in ('%s') then do;\n", s, vnm, memL))),
+  RTXT = list(
+    'num'=substitute(sprintf("%sif %s >  %s then do;\n", s, vnm, val)),
+    'fac'=substitute(sprintf("%sif %s in ('%s') then do;\n", s, vnm, memR))),
+  LEFT = list(
+      NULL
+  ),
+  RIGHT = list(
+    substitute(sprintf("%send; else\n", s)),
+    NULL
+  ),
+  MISS = list(
+    substitute(sprintf("%send; else do;\n", s, vnm))
+  ),
+  END = substitute(sprintf("%send;\n", s)),
+  POST = NULL
+)}
 
-  text <- list(sprintf("\n%s_TREE_%04d := ", pfx, i))
-  recurse <- function(x, pfx, n, depth) {
-
-    sp <- paste(rep("  ", depth - 1), collapse = "") # spacing
-
-    vid <- x[n,'best'] # variable ID
-    vnm <- mod.data$vars[vid] # variable text
-    val <- x[n, 'split'] # split value
-
-    if (x[n,'status'] == -1) { # base case is terminal node
-      text[[length(text)+1]] <<- sprintf("%s", x[n,'pred'])
-      return(text)
-    }
-
-    # create logic for split
-    if (x[n, 'vtype'] == 1) { # numeric split
-      ltxt <- sprintf("%s(NULL < %s and %s <= %s) => ", sp, vnm, vnm, val)
-      rtxt <- sprintf("\n%s(%s > %s) => ", sp, vnm, val)
-    } else { # ordered & factors
-      lvl <- mod.data$lvls[[vid]] # variable levels
-      ids <- if (x[n, 'vtype'] == 2) 1:val else which(toBinary(val) == 1)
-
-      memL <- paste(lvl[ids], collapse = "','")
-      memR <- paste(lvl[!(lvl %in% memL)], collapse = "','")
-
-      ltxt <- sprintf("%s(%s in ['%s']) => ", sp, vnm, memL)
-      rtxt <- sprintf("\n%s(%s in ['%s']) => ", sp, vnm, memR)
-    }
-
-    # go left
-    text[[length(text)+1]] <<- "map(\n"
-    text[[length(text)+1]] <<- ltxt
-    recurse(x, pfx, x[n,'left'], depth+1)
-    text[[length(text)+1]] <<- ", "
-
-    # else, go right
-    text[[length(text)+1]] <<- rtxt
-    recurse(x, pfx, x[n,'right'], depth+1)
-
-    # check for missing and recurse
-    if (mod.data$miss) {
-      text[[length(text)+1]] <<- ", "
-      recurse(x, pfx, x[n,'miss'], depth+1)
-    }
-
-    text[[length(text)+1]] <<- ")"
-
-    return(text)
-  }
-
-
-  outdat <- do.call(c, recurse(x, pfx, 1, 1))
-  outdat <- c(outdat, ";\n")
-  outdat
-}
+adaptor.ecl <- function(x) {
+  list(
+    PRE  = substitute(sprintf("\n%s_TREE_%04d := ", pfx, i)),
+    BASE = substitute(sprintf("%s", x[n,'pred'])),
+    LTXT = list(
+      'num'=substitute(sprintf("%s(NULL < %s and %s <= %s) => ", s, vnm, vnm, val)),
+      'fac'=substitute(sprintf("%s(%s in ['%s']) => ", s, vnm, memL))),
+    RTXT = list(
+      'num'=substitute(sprintf("\n%s(%s > %s) => ", s, vnm, val)),
+      'fac'=substitute(sprintf("\n%s(%s in ['%s']) => ", s, vnm, memR))),
+    LEFT = list(
+      "map(\n",
+      NULL
+    ),
+    RIGHT = list(
+      ", ",
+      NULL
+    ),
+    MISS = list(
+      ", "
+    ),
+    END = ")",
+    POST = ";\n"
+  )}
